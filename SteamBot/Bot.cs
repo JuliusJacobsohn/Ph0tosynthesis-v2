@@ -18,6 +18,9 @@ using System.Text.RegularExpressions;
 using SteamKit2.GC;
 using SteamKit2.GC.CSGO.Internal;
 using SteamBot.Model;
+using System.Collections.Specialized;
+using HtmlAgilityPack;
+using System.Linq;
 
 namespace SteamBot
 {
@@ -90,6 +93,136 @@ namespace SteamBot
         /// </summary>
         public readonly string ApiKey;
         public readonly SteamWeb SteamWeb;
+
+        #region Custom Helpers
+
+        public SteamID ParseSteamID(string profile)
+        {
+            if (profile.Contains(":"))
+            {
+                //Handle STEAM_0_0:
+                return null;
+            }
+            else
+            {
+                return ParseSteamID(profile, !profile.Contains("profiles"));
+            }
+        }
+
+        private SteamID ParseSteamID(string profileUrl, bool id)
+        {
+            if (!id)
+            {
+                //parse profile code
+                string sID = profileUrl.Substring(profileUrl.IndexOf("profiles") + 9, 17);
+                ulong nonParsed = ulong.Parse(sID);
+                return new SteamID(nonParsed);
+            }
+            else
+            {
+                string requestUrl = "http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key={0}&vanityurl={1}";
+                requestUrl = string.Format(requestUrl, ApiKey, profileUrl);
+                //TODO: request id, convert, return
+                var response = SteamWeb.Request(requestUrl, "GET");
+                string responseString;
+                using (Stream stream = response.GetResponseStream())
+                {
+                    StreamReader reader = new StreamReader(stream, Encoding.UTF8);
+                    responseString = reader.ReadToEnd();
+                }
+                return null;
+            }
+        }
+        public SteamID ParseSteamID(ulong steamID)
+        {
+            return new SteamID(steamID);
+        }
+
+        #endregion
+        #region Custom Methods
+
+        public HttpStatusCode SendGroupAnnouncement(string groupname, string title, string content)
+        {
+            string announcementUrl = "http://steamcommunity.com/groups/{0}/announcements?action=post&body={2}&headline={1}&languages%5B0%5D%5Bbody%5D={2}&languages%5B0%5D%5Bheadline%5D={1}&languages%5B10%5D%5Bbody%5D=&languages%5B10%5D%5Bheadline%5D=&languages%5B10%5D%5Bupdated%5D=0&languages%5B11%5D%5Bbody%5D=&languages%5B11%5D%5Bheadline%5D=&languages%5B11%5D%5Bupdated%5D=0&languages%5B12%5D%5Bbody%5D=&languages%5B12%5D%5Bheadline%5D=&languages%5B12%5D%5Bupdated%5D=0&languages%5B13%5D%5Bbody%5D=&languages%5B13%5D%5Bheadline%5D=&languages%5B13%5D%5Bupdated%5D=0&languages%5B14%5D%5Bbody%5D=&languages%5B14%5D%5Bheadline%5D=&languages%5B14%5D%5Bupdated%5D=0&languages%5B15%5D%5Bbody%5D=&languages%5B15%5D%5Bheadline%5D=&languages%5B15%5D%5Bupdated%5D=0&languages%5B16%5D%5Bbody%5D=&languages%5B16%5D%5Bheadline%5D=&languages%5B16%5D%5Bupdated%5D=0&languages%5B17%5D%5Bbody%5D=&languages%5B17%5D%5Bheadline%5D=&languages%5B17%5D%5Bupdated%5D=0&languages%5B18%5D%5Bbody%5D=&languages%5B18%5D%5Bheadline%5D=&languages%5B18%5D%5Bupdated%5D=0&languages%5B19%5D%5Bbody%5D=&languages%5B19%5D%5Bheadline%5D=&languages%5B19%5D%5Bupdated%5D=0&languages%5B1%5D%5Bbody%5D=&languages%5B1%5D%5Bheadline%5D=&languages%5B1%5D%5Bupdated%5D=0&languages%5B20%5D%5Bbody%5D=&languages%5B20%5D%5Bheadline%5D=&languages%5B20%5D%5Bupdated%5D=0&languages%5B21%5D%5Bbody%5D=&languages%5B21%5D%5Bheadline%5D=&languages%5B21%5D%5Bupdated%5D=0&languages%5B22%5D%5Bbody%5D=&languages%5B22%5D%5Bheadline%5D=&languages%5B22%5D%5Bupdated%5D=0&languages%5B23%5D%5Bbody%5D=&languages%5B23%5D%5Bheadline%5D=&languages%5B23%5D%5Bupdated%5D=0&languages%5B24%5D%5Bbody%5D=&languages%5B24%5D%5Bheadline%5D=&languages%5B24%5D%5Bupdated%5D=0&languages%5B25%5D%5Bbody%5D=&languages%5B25%5D%5Bheadline%5D=&languages%5B25%5D%5Bupdated%5D=0&languages%5B26%5D%5Bbody%5D=&languages%5B26%5D%5Bheadline%5D=&languages%5B26%5D%5Bupdated%5D=0&languages%5B2%5D%5Bbody%5D=&languages%5B2%5D%5Bheadline%5D=&languages%5B2%5D%5Bupdated%5D=0&languages%5B3%5D%5Bbody%5D=&languages%5B3%5D%5Bheadline%5D=&languages%5B3%5D%5Bupdated%5D=0&languages%5B4%5D%5Bbody%5D=&languages%5B4%5D%5Bheadline%5D=&languages%5B4%5D%5Bupdated%5D=0&languages%5B5%5D%5Bbody%5D=&languages%5B5%5D%5Bheadline%5D=&languages%5B5%5D%5Bupdated%5D=0&languages%5B6%5D%5Bbody%5D=&languages%5B6%5D%5Bheadline%5D=&languages%5B6%5D%5Bupdated%5D=0&languages%5B7%5D%5Bbody%5D=&languages%5B7%5D%5Bheadline%5D=&languages%5B7%5D%5Bupdated%5D=0&languages%5B8%5D%5Bbody%5D=&languages%5B8%5D%5Bheadline%5D=&languages%5B8%5D%5Bupdated%5D=0&languages%5B9%5D%5Bbody%5D=&languages%5B9%5D%5Bheadline%5D=&languages%5B9%5D%5Bupdated%5D=0&sessionID={3}";
+            string sessionid = SteamWeb.SessionId;
+            announcementUrl = string.Format(announcementUrl, groupname, title, content, sessionid);
+            return SteamWeb.Request(announcementUrl, "GET").StatusCode;
+        }
+        public HttpStatusCode PostProfileComment(SteamID targetProfile, string comment)
+        {
+            string profileUrl = "http://steamcommunity.com/comment/Profile/post/{0}/-1/";
+            string sessionid = SteamWeb.SessionId;
+            profileUrl = string.Format(profileUrl, targetProfile.ConvertToUInt64());
+            NameValueCollection data = new NameValueCollection();
+            data.Set("comment", comment);
+            data.Set("sessionid", sessionid);
+            return SteamWeb.Request(profileUrl, "POST", data).StatusCode;
+        }
+
+        public IEnumerable<Model.Group> GetGroupInvitelist(SteamID profile)
+        {
+            string url = "http://steamcommunity.com/profiles/{0}/ajaxgroupinvite?new_profile=1";
+            string sessionid = SteamWeb.SessionId;
+            List<Model.Group> groupList = new List<Model.Group>();
+            url = string.Format(url, profile.ConvertToUInt64());
+            try
+            {
+
+                var response = SteamWeb.Request(url, "GET");
+                string responseString = "";
+                using (Stream stream = response.GetResponseStream())
+                {
+                    StreamReader reader = new StreamReader(stream, Encoding.UTF8);
+                    responseString = reader.ReadToEnd();
+                }
+                HtmlDocument doc = new HtmlDocument();
+                doc.LoadHtml(responseString);
+                var allGroups = doc.DocumentNode.FirstChild.ChildNodes.Where(v => v.Attributes.Contains("class")
+                                                                             && v.Attributes["class"].Value.Contains("group_list_option"));
+                foreach (HtmlNode tag in allGroups)
+                {
+                    var avatarNode = tag.ChildNodes.Where(v => v.Attributes.Contains("class")
+                                                                                 && v.Attributes["class"].Value.Contains("playerAvatar"))
+                                                                                 .FirstOrDefault().FirstChild;
+                    string avatar = avatarNode.Attributes["src"].Value;
+                    var titleNode = tag.ChildNodes.Where(v => v.Attributes.Contains("class")
+                                                                                 && v.Attributes["class"].Value.Contains("group_list_groupname"))
+                                                                                 .FirstOrDefault();
+                    string title = titleNode.InnerText;
+
+                    string groupId = tag.Attributes["data-groupid"].Value;
+                    Model.Group g = new Model.Group
+                    {
+                        GroupId = groupId,
+                        Image = avatar,
+                        Title = title
+                    };
+
+                    g.OnCreate("GetGroupInviteList");
+                    groupList.Add(g);
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error("Failure parsing groups.\n" + e);
+            }
+            return groupList;
+        }
+        public HttpStatusCode SendGroupInvitation(SteamID targetProfile, string groupId)
+        {
+            string url = "http://steamcommunity.com/actions/GroupInvite";
+            string sessionid = SteamWeb.SessionId;
+            string steamId = targetProfile.ConvertToUInt64().ToString();
+            NameValueCollection data = new NameValueCollection();
+            data.Set("json", "1");
+            data.Set("sessionID", sessionid);
+            data.Set("type", "groupInvite");
+            data.Set("group", groupId);
+            data.Set("invitee", steamId);
+            return SteamWeb.Request(url, "POST", data, ajax: true).StatusCode;
+        }
+
+        #endregion
 
         public void RequestFloat(string inspectLink, Action<float> callbackAction)
         {
@@ -607,11 +740,8 @@ namespace SteamBot
             msg.Handle<SteamGameCoordinator.MessageCallback>(callback =>
             {
                 var message = new ClientGCMsgProtobuf<CMsgGCCStrike15_v2_Client2GCEconPreviewDataBlockResponse>(callback.Message);
-                Log.Success($"Got skin: ASSETID[{message.Body.iteminfo.itemid}]");
-                var pw = message.Body.iteminfo.paintwear;
-                var ba = BitConverter.GetBytes(pw);
+                var ba = BitConverter.GetBytes(message.Body.iteminfo.paintwear);
                 float paintwearFloat = BitConverter.ToSingle(ba, 0);
-                //Log.Success("Float: " + paintwearFloat);
                 CurrentFloatCallback(paintwearFloat);
                 SetGamePlaying(0);
             });

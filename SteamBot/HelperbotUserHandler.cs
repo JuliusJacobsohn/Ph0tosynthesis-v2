@@ -83,13 +83,6 @@ namespace SteamBot
         #region Chat
         public override void OnMessage(string message, EChatEntryType type)
         {
-            Bot.RequestFloat(message, PrintFloat);
-        }
-
-        public void PrintFloat(float value)
-        {
-            SendChatMessage("Wear value: " + value);
-            Log.Success("Wear value: " + value);
         }
 
         public override void OnChatRoomMessage(SteamID chatID, SteamID sender, string message)

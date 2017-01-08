@@ -7,6 +7,12 @@ using System.Windows.Forms;
 using SteamKit2;
 using SteamTrade;
 using SteamTrade.TradeOffer;
+using SteamBot.Model;
+using System.Net;
+using System.Collections.Specialized;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace SteamBot
 {
@@ -141,13 +147,121 @@ namespace SteamBot
         /// </summary>
         public abstract void OnMessage (string message, EChatEntryType type);
 
+
         public void OnMessageHandler(string message, EChatEntryType type)
         {
             _lastMessageWasFromTrade = false;
-            if(!HandleWaitingOnUserResponse(message))
+            if (!HandleWaitingOnUserResponse(message))
             {
+                if (message[0] == '/')
+                {
+                    string command = message.Substring(1);
+                    string commandName = command.Split(' ')[0];
+                    string[] commandArgs = new string[0];
+                    if (command.Contains(" "))
+                    {
+                        commandArgs = command.Split(' ').Skip(1).ToArray();
+                    }
+                    switch (commandName)
+                    {
+                        case "dummy":
+                            ChatCommand dummyCommand = new ChatCommand(2);
+                            Log.Success("Dummycall successful!");
+                            dummyCommand.Parse(message);
+                            foreach (var s in dummyCommand.GetArguments())
+                            {
+                                Log.Success(s);
+                            }
+                            break;
+                        case "comment":
+                            try
+                            {
+                                string comment_id = commandArgs[0];
+                                SteamID comment_steamId = new SteamID((ulong.Parse(comment_id)));
+                                string comment_message = commandArgs[1];
+                                var success = PostProfileComment(comment_steamId, comment_message);
+                                if (success == HttpStatusCode.OK)
+                                {
+                                    SendReplyMessage("Posted comment \"" + comment_message + "\" on " + comment_steamId.ToString() + "'s profile.");
+                                }
+                                else
+                                {
+                                    SendReplyMessage("Commandexecution failed. Statuscode: " + success);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                SendReplyMessage("Command execution failed. Command requires (string)steamid (string)message.");
+                            }
+                            break;
+                        case "game":
+                            ChatCommand gameCommand = new ChatCommand(1);
+                            gameCommand.Parse(message);
+                            string game_arg = gameCommand.GetArgument(0);
+                            if (game_arg == "stop")
+                            {
+                                Bot.SetGamePlaying(0);
+                                SendReplyMessage("Stopped game simulation");
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    Bot.SetGamePlaying(int.Parse(game_arg));
+                                    SendReplyMessage("Started simulating gameplay of " + game_arg);
+                                }
+                                catch (Exception e)
+                                {
+                                    SendReplyMessage(e.ToString());
+                                }
+                            }
+                            break;
+                        default:
+                            SendReplyMessage("Command execution failed. Command not found.");
+                            break;
+                    }
+                }else if (message.Contains("+csgo_econ_action_preview"))
+                {
+                    Bot.RequestFloat(message, PrintFloat);
+                }
                 OnMessage(message, type);
             }
+        }
+
+        public HttpStatusCode PostProfileComment(SteamID targetProfile, string comment)
+        {
+            return Bot.PostProfileComment(targetProfile, comment);
+        }
+
+        public void PrintFloat(float value)
+        {
+            if(value >= 0 && value < 0.07)
+            {
+                SendChatMessage("Your requested skin is factory new.");
+                Log.Success("Your requested skin is factory new.");
+            }
+            else if (value >= 0.07 && value < 0.15)
+            {
+                SendChatMessage("Your requested skin is minimal wear.");
+                Log.Success("Your requested skin is minimal wear.");
+            }
+            else if (value >= 0.15 && value < 0.38)
+            {
+                SendChatMessage("Your requested skin is field-tested.");
+                Log.Success("Your requested skin is field-tested.");
+            }
+            else if (value >= 0.38 && value < 0.45)
+            {
+                SendChatMessage("Your requested skin is well-worn.");
+                Log.Success("Your requested skin is well-worn.");
+            }
+            else if (value >= 0.45 && value < 1)
+            {
+                SendChatMessage("Your requested skin is battle-scarred.");
+                Log.Success("Your requested skin is battle-scarred.");
+            }
+            SendChatMessage("Wear value: " + value);
+            Log.Success("Wear value: " + value);
         }
 
         /// <summary>
