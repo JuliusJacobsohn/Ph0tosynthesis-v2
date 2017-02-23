@@ -107,7 +107,7 @@ namespace SteamTrade
             // Setup the request.
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = method;
-            request.Accept = "application/json, text/javascript;q=0.9, */*;q=0.5";
+            request.Accept = "text/javascript, text/html, application/xml, text/xml, application/json, */*";
             request.ContentType = "application/x-www-form-urlencoded; charset=UTF-8";
             // request.Host is set automatically.
             request.UserAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.57 Safari/537.36";
@@ -121,6 +121,9 @@ namespace SteamTrade
             {
                 request.Headers.Add("X-Requested-With", "XMLHttpRequest");
                 request.Headers.Add("X-Prototype-Version", "1.7");
+                request.Headers.Add("Accept-Encoding", "gzip, deflate");
+                request.Headers.Add("Accept-Language", "en-US,en;q=0.8,en-US;q=0.5,en;q=0.3");
+                request.Headers.Add("Cache-Control", "no-cache");
             }
 
             // Cookies
@@ -142,23 +145,23 @@ namespace SteamTrade
             }
 
             // Get the response and return it.
-            try 
+            try
             {
                 return request.GetResponse() as HttpWebResponse;
             }
-            catch (WebException ex) 
+            catch (WebException ex)
             {
                 //this is thrown if response code is not 200
-                if (fetchError) 
+                if (fetchError)
                 {
                     var resp = ex.Response as HttpWebResponse;
-                    if (resp != null) 
+                    if (resp != null)
                     {
                         return resp;
                     }
                 }
-                throw;                
-            }            
+                throw;
+            }
         }
 
         /// <summary>
@@ -171,7 +174,7 @@ namespace SteamTrade
         /// <returns>A bool containing a value, if the login was successful.</returns>
         public bool DoLogin(string username, string password)
         {
-            var data = new NameValueCollection {{"username", username}};
+            var data = new NameValueCollection { { "username", username } };
             // First get the RSA key with which we will encrypt our password.
             string response = Fetch("https://steamcommunity.com/login/getrsakey", "POST", data, false);
             GetRsaKey rsaJson = JsonConvert.DeserializeObject<GetRsaKey>(response);
@@ -220,7 +223,7 @@ namespace SteamTrade
                     capGid = Uri.EscapeDataString(loginJson.captcha_gid);
                 }
 
-                data = new NameValueCollection {{"password", encryptedBase64Password}, {"username", username}};
+                data = new NameValueCollection { { "password", encryptedBase64Password }, { "username", username } };
 
                 // Captcha Check.
                 string capText = "";
@@ -233,7 +236,7 @@ namespace SteamTrade
                     if (!string.IsNullOrEmpty(consoleText))
                     {
                         capText = Uri.EscapeDataString(consoleText);
-                }
+                    }
                 }
 
                 data.Add("captchagid", captcha ? capGid : "");
@@ -277,7 +280,7 @@ namespace SteamTrade
                 data.Add("rsatimestamp", time);
 
                 // Sending the actual login.
-                using(HttpWebResponse webResponse = Request("https://steamcommunity.com/login/dologin/", "POST", data, false))
+                using (HttpWebResponse webResponse = Request("https://steamcommunity.com/login/dologin/", "POST", data, false))
                 {
                     var stream = webResponse.GetResponseStream();
                     if (stream == null)
@@ -372,10 +375,17 @@ namespace SteamTrade
                 _cookies.Add(new Cookie("steamLogin", Token, string.Empty, SteamCommunityDomain));
                 _cookies.Add(new Cookie("steamLoginSecure", TokenSecure, string.Empty, SteamCommunityDomain));
 
+                //Add custom shit to the cookie
+                _cookies.Add(new Cookie("webTradeEligibility",
+                    "%7B%22allowed%22%3A1%2C%22allowed_at_time%22%3A0%2C%22steamguard_required_days%22%3A15%2C%22sales_this_year%22%3A6%2C%22max_sales_per_year%22%3A200%2C%22forms_requested%22%3A0%2C%22new_device_cooldown_days%22%3A7%7D",
+                    string.Empty,
+                    SteamCommunityDomain));
+                _cookies.Add(new Cookie("strInventoryLastContext", "730_2", string.Empty, SteamCommunityDomain));
+
                 return true;
             }
         }
-        
+
         /// <summary>
         /// Authenticate using an array of cookies from a browser or whatever source, without contacting the server.
         /// It is recommended that you call <see cref="VerifyCookies"/> after calling this method to ensure that the cookies are valid.
@@ -426,7 +436,7 @@ namespace SteamTrade
         /// Method to submit cookies to Steam after Login.
         /// </summary>
         /// <param name="cookies">Cookiecontainer which contains cookies after the login to Steam.</param>
-        static void SubmitCookies (CookieContainer cookies)
+        static void SubmitCookies(CookieContainer cookies)
         {
             HttpWebRequest w = WebRequest.Create("https://steamcommunity.com/") as HttpWebRequest;
 

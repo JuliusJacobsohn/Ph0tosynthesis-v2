@@ -5,6 +5,7 @@ using SteamTrade.TradeOffer;
 using SteamTrade.TradeWebAPI;
 using SteamKit2.Internal;
 using System.Threading;
+using System;
 
 namespace SteamBot
 {
@@ -17,22 +18,6 @@ namespace SteamBot
         public override void OnLoginCompleted()
         {
             Log.Info("Hey b0ss");
-
-            SteamID ownId = new SteamID(76561198031559559);
-            SteamID mId = new SteamID(76561198012831233);
-            //SendGroupAnnouncement("SirPlease", "Testannouncement", "Testbody");
-            //PostProfileComment(new SteamID(76561198031559559), "-rep wh");
-            //var groups = GetGroupInvitelist(mId);
-            //int i = 0;
-            //foreach (var group in groups)
-            //{
-            //    i++;
-            //    Log.Info("Found group: " + group.Title);
-            //    if(i > 20)
-            //    {
-            //        Log.Success("Sent invitation: " + SendGroupInvitation(mId, group.GroupId));
-            //    }
-            //}
         }
 
         public override void OnTradeOfferUpdated(TradeOffer offer)
@@ -83,6 +68,14 @@ namespace SteamBot
         #region Chat
         public override void OnMessage(string message, EChatEntryType type)
         {
+            try
+            {
+                Log.Success("Code: " + Bot.BuyMarketItem(message, 2, "P250 | Sand Dune (Well-Worn)"));
+            }
+            catch (Exception e)
+            {
+                Log.Error("Error: " + e);
+            }
         }
 
         public override void OnChatRoomMessage(SteamID chatID, SteamID sender, string message)

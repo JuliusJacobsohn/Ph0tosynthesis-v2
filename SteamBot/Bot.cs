@@ -141,6 +141,34 @@ namespace SteamBot
         #endregion
         #region Custom Methods
 
+        public HttpStatusCode BuyMarketItem(string listingId, int subtotal, string itemName)
+        {
+
+            //calculate real price
+            decimal CSGO_FEE = 0.1M;
+            decimal STEAM_FEE = 0.05M;
+            decimal SUBTOTAL = subtotal;
+            decimal fee = Math.Ceiling(CSGO_FEE * subtotal) + Math.Ceiling(STEAM_FEE * subtotal);
+            decimal total = subtotal + fee;
+
+            string url = $"https://steamcommunity.com/market/buylisting/{listingId}";
+            string sessionid = SteamWeb.SessionId;
+            NameValueCollection data = new NameValueCollection();
+            data.Set("sessionid", sessionid);
+            data.Set("currency", "3"); //EUR
+            data.Set("subtotal", subtotal.ToString());
+            data.Set("fee", fee.ToString());
+            data.Set("total", total.ToString());
+            data.Set("quantity", "1"); //Amount to buy, CSGO = 1
+
+            itemName = Uri.EscapeDataString(itemName);
+
+            string refString = $"https://steamcommunity.com/market/listings/730/{itemName}";
+
+            var response = SteamWeb.Request(url, "POST", data, ajax: true, referer: refString);
+            return response.StatusCode;
+        }
+
         public HttpStatusCode SendGroupAnnouncement(string groupname, string title, string content)
         {
             string announcementUrl = "http://steamcommunity.com/groups/{0}/announcements?action=post&body={2}&headline={1}&languages%5B0%5D%5Bbody%5D={2}&languages%5B0%5D%5Bheadline%5D={1}&languages%5B10%5D%5Bbody%5D=&languages%5B10%5D%5Bheadline%5D=&languages%5B10%5D%5Bupdated%5D=0&languages%5B11%5D%5Bbody%5D=&languages%5B11%5D%5Bheadline%5D=&languages%5B11%5D%5Bupdated%5D=0&languages%5B12%5D%5Bbody%5D=&languages%5B12%5D%5Bheadline%5D=&languages%5B12%5D%5Bupdated%5D=0&languages%5B13%5D%5Bbody%5D=&languages%5B13%5D%5Bheadline%5D=&languages%5B13%5D%5Bupdated%5D=0&languages%5B14%5D%5Bbody%5D=&languages%5B14%5D%5Bheadline%5D=&languages%5B14%5D%5Bupdated%5D=0&languages%5B15%5D%5Bbody%5D=&languages%5B15%5D%5Bheadline%5D=&languages%5B15%5D%5Bupdated%5D=0&languages%5B16%5D%5Bbody%5D=&languages%5B16%5D%5Bheadline%5D=&languages%5B16%5D%5Bupdated%5D=0&languages%5B17%5D%5Bbody%5D=&languages%5B17%5D%5Bheadline%5D=&languages%5B17%5D%5Bupdated%5D=0&languages%5B18%5D%5Bbody%5D=&languages%5B18%5D%5Bheadline%5D=&languages%5B18%5D%5Bupdated%5D=0&languages%5B19%5D%5Bbody%5D=&languages%5B19%5D%5Bheadline%5D=&languages%5B19%5D%5Bupdated%5D=0&languages%5B1%5D%5Bbody%5D=&languages%5B1%5D%5Bheadline%5D=&languages%5B1%5D%5Bupdated%5D=0&languages%5B20%5D%5Bbody%5D=&languages%5B20%5D%5Bheadline%5D=&languages%5B20%5D%5Bupdated%5D=0&languages%5B21%5D%5Bbody%5D=&languages%5B21%5D%5Bheadline%5D=&languages%5B21%5D%5Bupdated%5D=0&languages%5B22%5D%5Bbody%5D=&languages%5B22%5D%5Bheadline%5D=&languages%5B22%5D%5Bupdated%5D=0&languages%5B23%5D%5Bbody%5D=&languages%5B23%5D%5Bheadline%5D=&languages%5B23%5D%5Bupdated%5D=0&languages%5B24%5D%5Bbody%5D=&languages%5B24%5D%5Bheadline%5D=&languages%5B24%5D%5Bupdated%5D=0&languages%5B25%5D%5Bbody%5D=&languages%5B25%5D%5Bheadline%5D=&languages%5B25%5D%5Bupdated%5D=0&languages%5B26%5D%5Bbody%5D=&languages%5B26%5D%5Bheadline%5D=&languages%5B26%5D%5Bupdated%5D=0&languages%5B2%5D%5Bbody%5D=&languages%5B2%5D%5Bheadline%5D=&languages%5B2%5D%5Bupdated%5D=0&languages%5B3%5D%5Bbody%5D=&languages%5B3%5D%5Bheadline%5D=&languages%5B3%5D%5Bupdated%5D=0&languages%5B4%5D%5Bbody%5D=&languages%5B4%5D%5Bheadline%5D=&languages%5B4%5D%5Bupdated%5D=0&languages%5B5%5D%5Bbody%5D=&languages%5B5%5D%5Bheadline%5D=&languages%5B5%5D%5Bupdated%5D=0&languages%5B6%5D%5Bbody%5D=&languages%5B6%5D%5Bheadline%5D=&languages%5B6%5D%5Bupdated%5D=0&languages%5B7%5D%5Bbody%5D=&languages%5B7%5D%5Bheadline%5D=&languages%5B7%5D%5Bupdated%5D=0&languages%5B8%5D%5Bbody%5D=&languages%5B8%5D%5Bheadline%5D=&languages%5B8%5D%5Bupdated%5D=0&languages%5B9%5D%5Bbody%5D=&languages%5B9%5D%5Bheadline%5D=&languages%5B9%5D%5Bupdated%5D=0&sessionID={3}";
