@@ -79,6 +79,9 @@
     <Compile Include="Model\ChatCommand.cs" />
     <Compile Include="Model\Group.cs" />
     <Compile Include="Model\InspectItem.cs" />
+    <Compile Include="Model\ListingInfo.cs" />
+    <Compile Include="Model\MarketItem.cs" />
+    <Compile Include="Model\MarketResponse.cs" />
     <Compile Include="Model\_BaseEntity.cs" />
     <Compile Include="Notifications.cs" />
     <Compile Include="SteamGroups\CMsgInviteUserToGroup.cs" />

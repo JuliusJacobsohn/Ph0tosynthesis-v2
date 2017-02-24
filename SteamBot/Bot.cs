@@ -21,6 +21,7 @@ using SteamBot.Model;
 using System.Collections.Specialized;
 using HtmlAgilityPack;
 using System.Linq;
+using Newtonsoft.Json;
 
 namespace SteamBot
 {
@@ -93,6 +94,7 @@ namespace SteamBot
         /// </summary>
         public readonly string ApiKey;
         public readonly SteamWeb SteamWeb;
+        public string MarketLink = "https://steamcommunity.com/market/listings/730/{0}/render/?query=&start={1}&count={2}&country=DE&language=english&currency=3";
 
         #region Custom Helpers
 
@@ -139,35 +141,79 @@ namespace SteamBot
         }
 
         #endregion
-        #region Custom Methods
-
-        public HttpStatusCode BuyMarketItem(string listingId, int subtotal, string itemName)
+        #region Market Interaction
+        public HttpStatusCode BuyMarketItem(ListingInfo listing)
         {
-
-            //calculate real price
-            decimal CSGO_FEE = 0.1M;
-            decimal STEAM_FEE = 0.05M;
-            decimal SUBTOTAL = subtotal;
-            decimal fee = Math.Ceiling(CSGO_FEE * subtotal) + Math.Ceiling(STEAM_FEE * subtotal);
-            decimal total = subtotal + fee;
-
-            string url = $"https://steamcommunity.com/market/buylisting/{listingId}";
+            var marketItem = listing.MarketItem;
+            string url = $"https://steamcommunity.com/market/buylisting/{listing.ListingId}";
             string sessionid = SteamWeb.SessionId;
             NameValueCollection data = new NameValueCollection();
             data.Set("sessionid", sessionid);
             data.Set("currency", "3"); //EUR
-            data.Set("subtotal", subtotal.ToString());
-            data.Set("fee", fee.ToString());
-            data.Set("total", total.ToString());
+            data.Set("subtotal", marketItem.SubTotal.ToString());
+            data.Set("fee", marketItem.Fee.ToString());
+            data.Set("total", marketItem.Total.ToString());
             data.Set("quantity", "1"); //Amount to buy, CSGO = 1
 
-            itemName = Uri.EscapeDataString(itemName);
+            string itemName = Uri.EscapeDataString(marketItem.Name);
 
             string refString = $"https://steamcommunity.com/market/listings/730/{itemName}";
 
             var response = SteamWeb.Request(url, "POST", data, ajax: true, referer: refString);
             return response.StatusCode;
         }
+
+        public MarketResponse GetMarketResponse(string item, int start, int amount)
+        {
+            string marketUrl = GetMarketUrl(item, start, amount);
+            var response = HttpGet(marketUrl);
+            dynamic jsonObject = JsonConvert.DeserializeObject(response);
+            MarketResponse mResp = new MarketResponse();
+            mResp.AmountTotal = jsonObject.total_count;
+            mResp.Name = item;
+            mResp.Size = jsonObject.pagesize;
+            mResp.Start = jsonObject.start;
+
+            List<ListingInfo> listings = new List<ListingInfo>();
+            var listingInfosJson = jsonObject.listinginfo;
+            foreach (var listingInfoJson in listingInfosJson)
+            {
+                ListingInfo newListing = new ListingInfo();
+                newListing.Name = item;
+                newListing.ListingId = listingInfoJson.Name;
+                newListing.InternalId = listingInfoJson.Value.asset.id;
+
+                string unformattedLink = listingInfoJson.Value.asset.market_actions[0].link;
+                newListing.InspectLink = unformattedLink.Replace("%listingid%", newListing.ListingId).Replace("%assetid%", newListing.InternalId);
+                newListing.SubTotal = listingInfoJson.Value.converted_price;// - listingInfoJson.Value.converted_fee;
+
+                listings.Add(newListing);
+            }
+            mResp.Listings = listings;
+            return mResp;
+        }
+        public string GetMarketUrl(string item, int start, int amount)
+        {
+            string itemLink = Uri.EscapeDataString(item);
+            return string.Format(MarketLink, itemLink, start, amount);
+        }
+        public string HttpGet(string url)
+        {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            request.AutomaticDecompression = DecompressionMethods.GZip;
+
+            string html = "";
+            using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+            using (Stream stream = response.GetResponseStream())
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                html = reader.ReadToEnd();
+            }
+
+            return html;
+        }
+        #endregion
+        #region Custom Methods
 
         public HttpStatusCode SendGroupAnnouncement(string groupname, string title, string content)
         {
@@ -255,8 +301,10 @@ namespace SteamBot
         public void RequestFloat(string inspectLink, Action<float> callbackAction)
         {
             CurrentFloatCallback = callbackAction;
-            SetGamePlaying(730);
-
+            if (CurrentGame != 730)
+            {
+                SetGamePlaying(730);
+            }
             Thread.Sleep(550);
 
             var item = InspectItem.FromLink(inspectLink);
@@ -708,8 +756,8 @@ namespace SteamBot
                {
                    Log.Interface("This account is SteamGuard enabled. Enter the code via the `auth' command.");
 
-                    // try to get the steamguard auth code from the event callback
-                    var eva = new SteamGuardRequiredEventArgs();
+                   // try to get the steamguard auth code from the event callback
+                   var eva = new SteamGuardRequiredEventArgs();
                    FireOnSteamGuardRequired(eva);
                    if (!String.IsNullOrEmpty(eva.SteamGuard))
                        logOnDetails.AuthCode = eva.SteamGuard;
@@ -771,7 +819,7 @@ namespace SteamBot
                 var ba = BitConverter.GetBytes(message.Body.iteminfo.paintwear);
                 float paintwearFloat = BitConverter.ToSingle(ba, 0);
                 CurrentFloatCallback(paintwearFloat);
-                SetGamePlaying(0);
+                //SetGamePlaying(0);
             });
             #endregion
 
@@ -893,17 +941,17 @@ namespace SteamBot
                    return;
                }
 
-                //if (tradeManager.OtherInventory.IsPrivate)
-                //{
-                //    SteamFriends.SendChatMessage(callback.OtherClient, 
-                //                                 EChatEntryType.ChatMsg,
-                //                                 "Trade declined. Your backpack cannot be private.");
+               //if (tradeManager.OtherInventory.IsPrivate)
+               //{
+               //    SteamFriends.SendChatMessage(callback.OtherClient, 
+               //                                 EChatEntryType.ChatMsg,
+               //                                 "Trade declined. Your backpack cannot be private.");
 
-                //    SteamTrade.RespondToTrade (callback.TradeID, false);
-                //    return;
-                //}
+               //    SteamTrade.RespondToTrade (callback.TradeID, false);
+               //    return;
+               //}
 
-                if (CurrentTrade == null && GetUserHandler(callback.OtherClient).OnTradeRequest())
+               if (CurrentTrade == null && GetUserHandler(callback.OtherClient).OnTradeRequest())
                    SteamTrade.RespondToTrade(callback.TradeID, true);
                else
                    SteamTrade.RespondToTrade(callback.TradeID, false);

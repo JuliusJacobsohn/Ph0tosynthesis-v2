@@ -43,7 +43,7 @@ namespace SteamBot.Model
             request.Body.param_d = param_d;
             request.Body.param_m = param_m;
 
-            Console.WriteLine($"Requesting skin: ASSETID[{param_a}], DICKID[{param_d}], STEAMID[{param_s}], MARKETID[{param_m}]");
+            //Console.WriteLine($"Requesting skin: ASSETID[{param_a}], DICKID[{param_d}], STEAMID[{param_s}], MARKETID[{param_m}]");
 
             steamGC.Send(request, 730);
 

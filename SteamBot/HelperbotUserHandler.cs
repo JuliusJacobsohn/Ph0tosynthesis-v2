@@ -6,11 +6,15 @@ using SteamTrade.TradeWebAPI;
 using SteamKit2.Internal;
 using System.Threading;
 using System;
+using Newtonsoft.Json;
+using System.Linq;
+using SteamBot.Model;
 
 namespace SteamBot
 {
     public class HelperbotUserHandler : UserHandler
     {
+        Thread CurrentMarketThread { get; set; }
         public HelperbotUserHandler(Bot bot, SteamID sid) : base(bot, sid)
         {
         }
@@ -68,14 +72,68 @@ namespace SteamBot
         #region Chat
         public override void OnMessage(string message, EChatEntryType type)
         {
-            try
+            CurrentMarketThread = new Thread(t =>
             {
-                Log.Success("Code: " + Bot.BuyMarketItem(message, 2, "P250 | Sand Dune (Well-Worn)"));
-            }
-            catch (Exception e)
+                while (true)
+                {
+                    bool cancel = false;
+                    int start = 0;
+                    int amount = 100;
+                    while (!cancel)
+                    {
+                        try
+                        {
+                            var mResp = Bot.GetMarketResponse(message, start, amount);
+                            var inexpensiveSkins = mResp.Listings.Where(v => v.SubTotal <= 5);
+                            Log.Success("Found " + inexpensiveSkins.Count() + " in the range from " + start + " to " + (start + amount));
+                            if (!inexpensiveSkins.Any())
+                            {
+                                cancel = true;
+                            }
+                            else
+                            {
+                                foreach (var listing in inexpensiveSkins)
+                                {
+                                    BuyIfLowerThan(listing, 0.016f);
+                                    //Log.Debug("Sleeping 3 secs");
+                                    Thread.Sleep(1000);
+                                }
+                                start = start + amount;
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Log.Warn("Error occurred in buy thread: " + e);
+                        }
+                    }
+                }
+            });
+            if (message == "stop")
             {
-                Log.Error("Error: " + e);
+                CurrentMarketThread.Abort();
+                CurrentMarketThread = null;
             }
+            else
+            {
+                CurrentMarketThread.Start();
+            }
+        }
+
+        public void BuyIfLowerThan(ListingInfo listing, float wear)
+        {
+            Bot.RequestFloat(listing.InspectLink, v =>
+            {
+                if (v <= wear)
+                {
+                    Bot.BuyMarketItem(listing);
+                    SendChatMessage("Bought listing " + listing.InternalId + ", Float: " + v);
+                    Log.Success("Bought listing " + listing.InternalId + ", Float: " + v);
+                }
+                else
+                {
+                    Log.Warn("Didn't buy " + listing.Name + ", Float too high: " + v);
+                }
+            });
         }
 
         public override void OnChatRoomMessage(SteamID chatID, SteamID sender, string message)
