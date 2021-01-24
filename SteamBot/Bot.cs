@@ -169,27 +169,35 @@ namespace SteamBot
             var response = HttpGet(marketUrl);
             dynamic jsonObject = JsonConvert.DeserializeObject(response);
             MarketResponse mResp = new MarketResponse();
-            mResp.AmountTotal = jsonObject.total_count;
-            mResp.Name = item;
-            mResp.Size = jsonObject.pagesize;
-            mResp.Start = jsonObject.start;
-
-            List<ListingInfo> listings = new List<ListingInfo>();
-            var listingInfosJson = jsonObject.listinginfo;
-            foreach (var listingInfoJson in listingInfosJson)
+            try
             {
-                ListingInfo newListing = new ListingInfo();
-                newListing.Name = item;
-                newListing.ListingId = listingInfoJson.Name;
-                newListing.InternalId = listingInfoJson.Value.asset.id;
+                mResp.AmountTotal = jsonObject.total_count;
+                mResp.Name = item;
+                mResp.Size = jsonObject.pagesize;
+                mResp.Start = jsonObject.start;
 
-                string unformattedLink = listingInfoJson.Value.asset.market_actions[0].link;
-                newListing.InspectLink = unformattedLink.Replace("%listingid%", newListing.ListingId).Replace("%assetid%", newListing.InternalId);
-                newListing.SubTotal = listingInfoJson.Value.converted_price;// - listingInfoJson.Value.converted_fee;
+                List<ListingInfo> listings = new List<ListingInfo>();
+                var listingInfosJson = jsonObject.listinginfo;
+                foreach (var listingInfoJson in listingInfosJson)
+                {
+                    ListingInfo newListing = new ListingInfo();
+                    newListing.Name = item;
+                    newListing.ListingId = listingInfoJson.Name;
+                    newListing.InternalId = listingInfoJson.Value.asset.id;
 
-                listings.Add(newListing);
+                    string unformattedLink = listingInfoJson.Value.asset.market_actions[0].link;
+                    newListing.InspectLink = unformattedLink.Replace("%listingid%", newListing.ListingId).Replace("%assetid%", newListing.InternalId);
+                    newListing.SubTotal = listingInfoJson.Value.converted_price;// - listingInfoJson.Value.converted_fee;
+
+                    listings.Add(newListing);
+                }
+                mResp.Listings = listings;
+
             }
-            mResp.Listings = listings;
+            catch (Exception e)
+            {
+                Log.Warn("Error getting market data");
+            }
             return mResp;
         }
         public string GetMarketUrl(string item, int start, int amount)

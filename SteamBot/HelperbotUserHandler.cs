@@ -15,6 +15,7 @@ namespace SteamBot
     public class HelperbotUserHandler : UserHandler
     {
         Thread CurrentMarketThread { get; set; }
+        bool ReplyReceived = true;
         public HelperbotUserHandler(Bot bot, SteamID sid) : base(bot, sid)
         {
         }
@@ -72,9 +73,10 @@ namespace SteamBot
         #region Chat
         public override void OnMessage(string message, EChatEntryType type)
         {
+            bool stopThread = message == "stop";
             CurrentMarketThread = new Thread(t =>
             {
-                while (true)
+                while (!stopThread)
                 {
                     bool cancel = false;
                     int start = 0;
@@ -94,9 +96,25 @@ namespace SteamBot
                             {
                                 foreach (var listing in inexpensiveSkins)
                                 {
-                                    BuyIfLowerThan(listing, 0.016f);
-                                    //Log.Debug("Sleeping 3 secs");
-                                    Thread.Sleep(1000);
+                                    if (stopThread)
+                                    {
+                                        return;
+                                    }
+                                    if (ReplyReceived)
+                                    {
+                                        ReplyReceived = false;
+                                        BuyIfLowerThan(listing, 0.01f);
+                                        Log.Info("Sleeping 2 secs");
+                                        Thread.Sleep(2000);
+                                    }
+                                    else
+                                    {
+                                        Log.Info("No reply, sleeping 10 secs");
+                                        Thread.Sleep(10000);
+                                        BuyIfLowerThan(listing, 0.01f);
+                                        Log.Info("Sleeping 2 secs");
+                                        Thread.Sleep(2000);
+                                    }
                                 }
                                 start = start + amount;
                             }
@@ -108,21 +126,14 @@ namespace SteamBot
                     }
                 }
             });
-            if (message == "stop")
-            {
-                CurrentMarketThread.Abort();
-                CurrentMarketThread = null;
-            }
-            else
-            {
-                CurrentMarketThread.Start();
-            }
+            CurrentMarketThread.Start();
         }
 
         public void BuyIfLowerThan(ListingInfo listing, float wear)
         {
             Bot.RequestFloat(listing.InspectLink, v =>
             {
+                ReplyReceived = true;
                 if (v <= wear)
                 {
                     Bot.BuyMarketItem(listing);

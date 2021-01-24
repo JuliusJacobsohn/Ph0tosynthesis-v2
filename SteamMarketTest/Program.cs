@@ -21,7 +21,7 @@ namespace SteamMarketTest
 
         public Program()
         {
-            GetMarketResponse("SCAR-20 | Carbon Fiber (Factory New)", 0, 10);
+            var test = GetMarketResponse("SCAR-20 | Carbon Fiber (Factory New)", 0, 100);
         }
 
         public MarketResponse GetMarketResponse(string item, int start, int amount)
